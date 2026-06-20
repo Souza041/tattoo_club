@@ -50,7 +50,7 @@ const Router = {
         ["transactions", "Extrato"],
       ],
       tattoo_artist: [
-        ["home", "Início"], ["requests", "Solicitações"],
+        ["home", "Início"], ["requests", "Solicitações"], ["schedule", "Agenda"], ["availability", "Horários"],
       ],
       admin: [
         ["home", "Início"], ["clients", "Clientes"], ["artists", "Tatuadores"],
@@ -77,6 +77,8 @@ const Router = {
     },
     tattoo_artist: {
       requests:     () => ArtistUI.requests(),
+      schedule: () => ArtistUI.schedule(),
+      availability: () => ArtistUI.availability(),
     },
     admin: {
       clients:      () => AdminUI.clients(),

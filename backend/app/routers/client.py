@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -7,13 +7,13 @@ from ..database import get_db
 from ..deps import require_client
 from ..models import (
     User, ClientProfile, Plan, TattooArtist, Payment, Assembly,
-    TattooAppointment, VirtualTransaction
+    TattooAppointment, VirtualTransaction, ArtistAvailability, TattooSession
 )
 from ..schemas import (
     ChoosePlanIn, ChooseArtistIn, ClientDashboardOut,
     PaymentOut, AssemblyOut, AssemblyParticipantOut,
     AppointmentCreateIn, AppointmentOut, PlanOut, ArtistOut,
-    TransactionOut
+    TransactionOut, TattooSessionOut
 )
 
 router = APIRouter(prefix="/api/client", tags=["client"])
@@ -124,36 +124,94 @@ def request_appointment(
     db: Session = Depends(get_db),
 ):
     profile = _get_profile(db, user)
+
     if not profile.preferred_artist_id:
         raise HTTPException(status_code=400, detail="Escolha um tatuador antes")
-    won = db.query(Assembly).filter(Assembly.winner_client_id == profile.id).order_by(Assembly.executed_at.desc()).first()
+
+    won = db.query(Assembly).filter(
+        Assembly.winner_client_id == profile.id
+    ).order_by(Assembly.executed_at.desc()).first()
+
     if not won:
         raise HTTPException(status_code=403, detail="Você ainda não foi contemplado em uma assembleia")
+
+    if data.total_sessions < 1:
+        raise HTTPException(status_code=400, detail="Informe ao menos 1 sessão")
+
+    if len(data.sessions) != data.total_sessions:
+        raise HTTPException(status_code=400, detail="Quantidade de horários diferente da quantidade de sessões")
+
     already = db.query(TattooAppointment).filter(
         TattooAppointment.client_id == profile.id,
         TattooAppointment.assembly_id == won.id,
     ).first()
+
     if already:
         raise HTTPException(status_code=400, detail="Já existe agendamento para sua contemplação")
+
     appt = TattooAppointment(
         client_id=profile.id,
         tattoo_artist_id=profile.preferred_artist_id,
         assembly_id=won.id,
         description=data.description,
-        scheduled_date=data.scheduled_date,
+        scheduled_date=data.sessions[0].scheduled_start,
         status="requested",
     )
+
     db.add(appt)
+    db.flush()
+
+    artist = db.query(TattooArtist).filter(
+        TattooArtist.id == profile.preferred_artist_id
+    ).first()
+
+    duration = artist.default_session_hours or 2.0
+
+    for idx, session in enumerate(data.sessions, start=1):
+        start = session.scheduled_start
+        end = start + timedelta(hours=duration)
+
+        conflict = db.query(TattooSession).filter(
+            TattooSession.tattoo_artist_id == profile.preferred_artist_id,
+            TattooSession.scheduled_start < end,
+            TattooSession.scheduled_end > start,
+            TattooSession.status != "cancelled",
+        ).first()
+
+        if conflict:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Conflito de agenda na sessão {idx}"
+            )
+
+        db.add(TattooSession(
+            appointment_id=appt.id,
+            tattoo_artist_id=profile.preferred_artist_id,
+            client_id=profile.id,
+            session_number=idx,
+            duration_hours=duration,
+            scheduled_start=start,
+            scheduled_end=end,
+            status="scheduled",
+        ))
+
     db.commit()
     db.refresh(appt)
+
     artist = db.query(TattooArtist).filter(TattooArtist.id == appt.tattoo_artist_id).first()
+
     return AppointmentOut(
-        id=appt.id, client_id=appt.client_id, client_name=user.name,
+        id=appt.id,
+        client_id=appt.client_id,
+        client_name=user.name,
         tattoo_artist_id=appt.tattoo_artist_id,
         artist_name=artist.artistic_name if artist else None,
-        assembly_id=appt.assembly_id, description=appt.description,
-        scheduled_date=appt.scheduled_date, status=appt.status,
-        created_at=appt.created_at, completed_at=appt.completed_at,
+        assembly_id=appt.assembly_id,
+        description=appt.description,
+        scheduled_date=appt.scheduled_date,
+        status=appt.status,
+        created_at=appt.created_at,
+        completed_at=appt.completed_at,
     )
 
 @router.post("/appointments/{appt_id}/release")
@@ -222,3 +280,23 @@ def next_assembly(user: User = Depends(require_client), db: Session = Depends(ge
         "label": scheduled.strftime("%d/%m/%Y"),
         "eligible": paid and profile.plan_id is not None,
     }
+    
+@router.get("/appointments/{appt_id}/sessions", response_model=List[TattooSessionOut])
+def appointment_sessions(
+    appt_id: int,
+    user: User = Depends(require_client),
+    db: Session = Depends(get_db)
+):
+    profile = _get_profile(db, user)
+
+    appt = db.query(TattooAppointment).filter(
+        TattooAppointment.id == appt_id,
+        TattooAppointment.client_id == profile.id,
+    ).first()
+
+    if not appt:
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado")
+
+    return db.query(TattooSession).filter(
+        TattooSession.appointment_id == appt.id
+    ).order_by(TattooSession.session_number.asc()).all()

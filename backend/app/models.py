@@ -32,6 +32,8 @@ class TattooArtist(Base):
     whatsapp = Column(String(30), nullable=True)
     rating = Column(Float, default=5.0)
     verified = Column(Boolean, default=False)
+    
+    default_session_hours = Column(Float, default=2.0)
 
     user = relationship("User", back_populates="artist_profile")
 
@@ -126,4 +128,42 @@ class ArtistPortfolio(Base):
     id = Column(Integer, primary_key=True, index=True)
     artist_id = Column(Integer, ForeignKey("tattoo_artists.id"))
     image_url = Column(String(500), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+class ArtistAvailability(Base):
+    __tablename__ = "artist_availability"
+
+    id = Column(Integer, primary_key=True, index=True)
+    artist_id = Column(Integer, ForeignKey("tattoo_artists.id"), nullable=False)
+    available_at = Column(DateTime, nullable=False)
+    is_booked = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+class ArtistSchedule(Base):
+    __tablename__ = "artist_schedule"
+
+    id = Column(Integer, primary_key=True, index=True)
+    artist_id = Column(Integer, ForeignKey("tattoo_artists.id"), nullable=False)
+
+    weekday = Column(Integer, nullable=False)  # 0=segunda ... 6=domingo
+    start_hour = Column(String(5), nullable=False)  # "09:00"
+    end_hour = Column(String(5), nullable=False)    # "18:00"
+
+    active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+class TattooSession(Base):
+    __tablename__ = "tattoo_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    appointment_id = Column(Integer, ForeignKey("tattoo_appointments.id"), nullable=False)
+    tattoo_artist_id = Column(Integer, ForeignKey("tattoo_artists.id"), nullable=False)
+    client_id = Column(Integer, ForeignKey("client_profiles.id"), nullable=False)
+
+    session_number = Column(Integer, nullable=False)
+    duration_hours = Column(Float, default=2.0)
+    scheduled_start = Column(DateTime, nullable=False)
+    scheduled_end = Column(DateTime, nullable=False)
+
+    status = Column(String(30), default="scheduled")
     created_at = Column(DateTime, default=datetime.utcnow)

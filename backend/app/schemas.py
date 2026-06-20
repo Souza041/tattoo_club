@@ -49,6 +49,7 @@ class ArtistBase(BaseModel):
     city: str = ""
     instagram: str = ""
     bio: str = ""
+    default_session_hours: float = 2.0
     active: bool = True
 
 class ArtistCreate(ArtistBase):
@@ -63,6 +64,7 @@ class ArtistOut(ArtistBase):
     avatar_url: str | None = None
     whatsapp: str | None = None
     rating: float = 5.0
+    default_session_hours: float = 2.0
     verified: bool = False
 
 # ---------- Client ----------
@@ -131,11 +133,29 @@ class AssemblyOut(BaseModel):
     winner_name: Optional[str] = None
     status: str
     participants: List[AssemblyParticipantOut] = []
+    
+class SessionScheduleIn(BaseModel):
+    scheduled_start: datetime
+
+class TattooSessionOut(BaseModel):
+    id: int
+    appointment_id: int
+    tattoo_artist_id: int
+    client_id: int
+    session_number: int
+    duration_hours: float
+    scheduled_start: datetime
+    scheduled_end: datetime
+    status: str
+
+    model_config = ConfigDict(from_attributes=True)
 
 # ---------- Appointments ----------
 class AppointmentCreateIn(BaseModel):
     description: str
-    scheduled_date: Optional[datetime] = None
+    total_sessions: int = 1
+    session_duration_hours: float = 2.0
+    sessions: List[SessionScheduleIn]
 
 class AppointmentStatusIn(BaseModel):
     status: str  # scheduled | in_progress | completed
@@ -172,3 +192,34 @@ class AdminDashboardOut(BaseModel):
     non_paying_clients: int
     assemblies_done: int
     virtual_total: float
+    
+class AvailabilityCreateIn(BaseModel):
+    available_at: datetime
+
+class AvailabilityOut(BaseModel):
+    id: int
+    artist_id: int
+    available_at: datetime
+    is_booked: bool
+    model_config = ConfigDict(from_attributes=True)
+    
+class ArtistScheduleIn(BaseModel):
+    weekday: int
+    start_hour: str
+    end_hour: str
+    active: bool = True
+
+
+class ArtistScheduleOut(BaseModel):
+    id: int
+    artist_id: int
+    weekday: int
+    start_hour: str
+    end_hour: str
+    active: bool
+
+    model_config = ConfigDict(from_attributes=True)
+    
+class ArtistScheduleSaveIn(BaseModel):
+    default_session_hours: float = 2.0
+    schedule: List[ArtistScheduleIn]

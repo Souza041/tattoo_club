@@ -4,19 +4,39 @@ const AdminUI = {
     Router.app().innerHTML = `
       <h2>Painel admin</h2>
       <div class="row">
-        <div class="card"><h3>Clientes</h3><div style="font-size:28px;font-weight:700">${d.total_clients}</div></div>
-        <div class="card"><h3>Tatuadores</h3><div style="font-size:28px;font-weight:700">${d.total_artists}</div></div>
-        <div class="card"><h3>Adimplentes (mês)</h3><div style="font-size:28px;font-weight:700;color:#6cf09b">${d.paying_clients}</div></div>
-        <div class="card"><h3>Inadimplentes</h3><div style="font-size:28px;font-weight:700;color:#f0a86c">${d.non_paying_clients}</div></div>
-        <div class="card"><h3>Assembleias realizadas</h3><div style="font-size:28px;font-weight:700">${d.assemblies_done}</div></div>
-        <div class="card"><h3>Saldo virtual total</h3><div style="font-size:28px;font-weight:700">R$ ${d.virtual_total.toFixed(2)}</div></div>
-        <button onclick="Router.go('payments')">
-          Registrar pagamento
-        </button>
+        <div class="card kpi">
+          <div class="kpi-label">Clientes</div>
+          <div class="kpi-value blue">${d.total_clients}</div>
+        </div>
 
-        <button onclick="Router.go('assemblies')">
-          Executar assembleia
-        </button>
+        <div class="card kpi">
+          <div class="kpi-label">Tatuadores</div>
+          <div class="kpi-value blue">${d.total_artists}</div>
+        </div>
+
+        <div class="card kpi">
+          <div class="kpi-label">Adimplentes no mês</div>
+          <div class="kpi-value green">${d.paying_clients}</div>
+        </div>
+
+        <div class="card kpi">
+          <div class="kpi-label">Inadimplentes</div>
+          <div class="kpi-value orange">${d.non_paying_clients}</div>
+        </div>
+        
+        <div class="card kpi">
+          <div class="kpi-label">Assembleias realizadas</div>
+          <div class="kpi-value orange">${d.assemblies_done}</div>
+        </div>
+      </div>
+      
+      <div class="card">
+        <h3>Ações rápidas</h3>
+        <div class="action-grid">
+          <button class="primary" onclick="Router.go('payments')">Registrar pagamento</button>
+          <button class="secondary" onclick="Router.go('assemblies')">Executar assembleia</button>
+          <button class="secondary" onclick="Router.go('artists')">Gerenciar tatuadores</button>
+        </div>
       </div>`;
   },
 
